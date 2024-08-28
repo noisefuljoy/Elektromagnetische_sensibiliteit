@@ -368,7 +368,6 @@ var sc = ~pentatetra2;
 
 /*RECORDER SYNTHS*/
 Synth(\recorder, [\in, 0, \thresh, 0.35, \fftbuf, ~craft_fftbuf_left, \recbuf, ~craft_buffer_left]);
-
 Synth(\recorder, [\in, 0, \thresh, 0.6, \fftbuf, ~craft_fftbuf_right, \recbuf, ~craft_buffer_right]);
 
 
