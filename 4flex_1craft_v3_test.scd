@@ -323,12 +323,7 @@ SynthDef(\stereo_verb, {|in out=0 mix=0.0|
 //s.sync;
 ~checkRoutine = Routine({ inf.do{
 		~button_gates.do{|item, i| if ( item == 1, { (" button still pressed : "++i).postln;  }); };
-		0.1.wait;
-	};
-	}).play;
-
-
-
+		0.1.wait; }; }).play;
 
 ~winenv = Env([0, 1, 0], [0.5, 0.5], [8, -8]);
 ~grainbufenv = Buffer.sendCollection(s, ~winenv.discretize, 1);
@@ -349,6 +344,23 @@ SynthDef(\stereo_verb, {|in out=0 mix=0.0|
 ~grainbuf_switch = [0,0,0,0];
 ~grainFreezeSwitch = [0,0,0,0];
 ~grainFreeze = [0,0,0,0];
+
+OSCdef(\craft, {|msg| var button1, button2;
+			//msg.postln;
+
+		    button1 = msg[11+3];
+			button2 = msg[18+3];
+
+		    if ( button1 != 0, {
+			("button 1: "++button1).postln;     });
+
+		    if ( button2 != 0, {
+			("button 2: "++button2).postln;     });
+
+
+
+			}, "/craft");
+
 
 OSCdef(\flex_rightarm, {|msg|
 			var fingers = msg[3];
