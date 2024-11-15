@@ -10,7 +10,7 @@
 ~grainpitchBus = Array.fill(4, { Bus.control(s, 1).set(1); });
 ~grainampBus = Array.fill(4, { Bus.control(s, 1).set(0.75); });
 ~posBus = Array.fill(16, {|i| Bus.control(s, 1).set(i*0.125); });
-	~endposBus = Bus.control(s, 1).set( 1.0 );
+~endposBus = Bus.control(s, 1).set( 1.0 );
 ~endposBus.set(0.4);
 /*
 SynthDef(\radio_looper, {|out=0 amp=0.15 bufnum rateBus envbuf dur=0.1 posBus endposBus overlap=1 gate=1 trig=0|
@@ -30,9 +30,7 @@ SynthDef(\radio_looper, {|out=0 amp=0.5 bufnum rateBus envbuf startposBus loopra
 	    rate = In.kr(rateBus, 1);
 	    startpos = In.kr(startposBus, 1);
 		looprange = In.kr(looprangeBus, 1);
-
 		env = EnvGen.ar(Env.adsr(0.01, 0.0,1, 0.1),gate, doneAction: 2);
-
 		phasor = Phasor.ar(0, rate * BufRateScale.kr(bufnum), startpos * BufFrames.kr(bufnum), (startpos + looprange) * BufFrames.kr(bufnum));
 	   // dur = (looprange * BufFrames.kr(bufnum) ) / 48000;
 	    //sigenv = EnvGen.ar(Env.perc(0.001, dur*0.9),phasor);

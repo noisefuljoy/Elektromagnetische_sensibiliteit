@@ -1,5 +1,5 @@
 
-~radio_files = "D:/Samples/radiosamples/*.wav".pathMatch;
+~radio_files = "D:/Samples/radiosamples/shorter/*.wav".pathMatch;
 ~radio_samples = ~radio_files.collect({|item| Buffer.read(s, item); });
 
 ~grainbufGroup = Group.new;
@@ -30,27 +30,39 @@ SynthDef(\radio_looper, {|out=0 amp=0.15 bufnum rateBus envbuf dur=0.1 posBus en
 		Out.ar(out, Pan2.ar(sig*env*overlap.reciprocal*amp)); }).store;
 */
 SynthDef(\radio_looper, {|out=0 amp=0.5 bufnum startBus rateBus envbuf rangeBus gate=1 trig=0|
-		var start_pos, sigenv,env, sig, phasor, rate,  looprange;
+		var start_pos, sigenv,env, sig, phasor, rate,  looprange,dur;
 	    start_pos = In.kr(startBus, 1);
 	    rate = In.kr(rateBus, 1);
 		looprange = In.kr(rangeBus, 1);
-	    start_pos.poll;
-	    looprange.poll;
-		env = EnvGen.ar(Env.adsr(0.01, 0.0,1, 0.1),gate, doneAction: 2);
+	   // start_pos.poll;
+	   // looprange.poll;
+		//env = EnvGen.ar(Env.adsr(0.01, 0.0,1, 0.1),gate, doneAction: 2);
 
 		phasor = Phasor.ar(0, rate * BufRateScale.kr(bufnum), start_pos * BufFrames.kr(bufnum), (start_pos + looprange) * BufFrames.kr(bufnum));
-	   // dur = (looprange * BufFrames.kr(bufnum) ) / 48000;
-	    //sigenv = EnvGen.ar(Env.perc(0.001, dur*0.9),phasor);
-		sig = BufRd.ar(1, bufnum, phasor);
-		Out.ar(out, Pan2.ar(sig*env*amp)); }).store;
+	    dur = (looprange * BufFrames.kr(bufnum) ) / 48000;
+	    dur.poll;
+	    sigenv = EnvGen.ar(Env.perc(dur*0.01,dur*0.99,1,2),doneAction: 2);
+		sig = BufRd.ar(1, bufnum, phasor,loop:0) * sigenv;
+		Out.ar(out, Pan2.ar(sig*sigenv*amp)); }).store;
 
-
-Synth(\radio_looper, [\bufnum, ~radio_samples[2],
+Synth(\radio_looper, [\bufnum, ~radio_samples[0],
 	\startBus, ~loop_buses[0].index, \rangeBus, ~loop_buses[1].index,
 	\rateBus, ~grainpitchBus[0].index,\out, 0 ],~grainbufGroup);
 
-~loop_buses[1].set(0.001);
 
+~scene0_routine = Routine({ inf.do{ var wait_time;
+						Synth(\radio_looper, [\bufnum, ~radio_samples[2],
+						\startposBus, ~scene0_buses[1].index, \looprangeBus, ~scene0_buses[2].index,
+						\rateBus, ~scene0_buses[0].index, \out, ~verbBus ],~grainbufGroup);
+						~scene0_buses.get{|item| wait_time = item; };
+						wait_time.postln;
+						wait_time.wait; }; }).play;
+
+~grainbufGroup.set(\trig, 1);
+
+~grainbufGroup.set(\gate,0);
+~loop_buses[1].set(0.15);
+~loop_buses[1].getn
 
 ~startpos_bus.set(0.0001);
 

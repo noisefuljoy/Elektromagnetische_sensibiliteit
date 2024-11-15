@@ -123,19 +123,38 @@ SynthDef(\trillflex4, {|t_recalibrate=0.0 t_updateTrill=1.0|
 		SendReply.kr(Impulse.kr(10), "/flex4", centroids);
 	}).store;
 
-SynthDef(\radio_looper, {|out=0 amp=0.5 bufnum rateBus envbuf startposBus looprangeBus gate=1 trig=0|
-		var sigenv, env, sig, phasor, rate, startpos, looprange, dur;
-	    rate = In.kr(rateBus, 1);
-	    startpos = In.kr(startposBus, 1);
-		looprange = In.kr(looprangeBus, 1);
 
-		env = EnvGen.ar(Env.adsr(0.01, 0.0,1, 0.1),gate, doneAction: 2);
+SynthDef(\radio_looper, {|out=0 amp=0.25 bufnum rate=1 envbuf startpos=0 looprange=0.25 overlap=0 t_trig=0 gate=1|
+		var sig1_OR_sig2, sig1,sig2,start1,start2,phasor1,phasor2,end1,end2,
+	    kill_env, env, frames,endpos, dur, crossfade;
+	    endpos =  (startpos + looprange);
+	    sig1_OR_sig2 = ToggleFF.kr(t_trig);
+	    //sig1_OR_sig2.poll;
+	    start1 = Latch.kr(startpos, sig1_OR_sig2);
+	    end1 = Latch.kr(endpos, sig1_OR_sig2);
+	    start2 = Latch.kr(startpos, 1 - sig1_OR_sig2);
+	    end2 = Latch.kr(endpos, 1 - sig1_OR_sig2);
+	    crossfade = Lag.ar(K2A.ar(sig1_OR_sig2), 0.001);
 
-		phasor = Phasor.ar(0, rate * BufRateScale.kr(bufnum), startpos * BufFrames.kr(bufnum), (startpos + looprange) * BufFrames.kr(bufnum));
-	   // dur = (looprange * BufFrames.kr(bufnum) ) / 48000;
-	    //sigenv = EnvGen.ar(Env.perc(0.001, dur*0.9),phasor);
-		sig = BufRd.ar(1, bufnum, phasor);
-		Out.ar(out, Pan2.ar(sig*env*amp)); }).store;
+	    rate = rate * BufRateScale.kr(bufnum);
+	    frames = BufFrames.kr(bufnum);
+	    //startpos = In.kr(startposBus, 1) * frames;
+		//looprange = In.kr(looprangeBus, 1);
+	    //startpos = startpos * frames;
+	    dur = (looprange * frames ) / rate.abs / 48000;
+	    //dur.poll;
+	    //env = EnvGen.ar(Env.new([0,1,1,0],[0,dur,0]),t_trig);
+		kill_env = EnvGen.ar(Env.adsr(0.0,0.0,1,0.01),gate, doneAction: 2);
+		env = EnvGen.ar(Env.linen(dur*0.1,dur*0.99,dur*0.01+(dur*overlap) ),t_trig);
+	    //env = EnvGen.ar(Env.perc(dur*0.01,dur*0.99),t_trig);
+		phasor1 = Phasor.ar(sig1_OR_sig2, rate, start1*frames,end1*frames+(overlap*frames), start1*frames );
+	    phasor2 = Phasor.ar(1 - sig1_OR_sig2, rate, start2*frames,end2*frames+(overlap*frames), start2*frames );
+		//sigenv = EnvGen.ar(Env.linen(0.1*dur,0.8*dur,0.1*dur),\trig.tr(1));
+		sig1 = BufRd.ar(1, bufnum, phasor1, interpolation: 1);
+	    sig2 = BufRd.ar(1, bufnum, phasor2, interpolation: 1);
+	Out.ar(out, Pan2.ar( (crossfade*sig1) + ( ( 1 - crossfade ) * sig2) * env * kill_env * amp) );
+	    }).store;
+
 
 SynthDef(\radio_sampler, {|out=0 amp=0.15 bufnum rateBus envbuf dur=0.1 posBus overlap=1|
 		var env, sig, rate, pos;
@@ -148,6 +167,7 @@ SynthDef(\radio_sampler, {|out=0 amp=0.15 bufnum rateBus envbuf dur=0.1 posBus o
 SynthDef(\grain_eq, {|out=0 in amp=1 ffreq=800 rq=0.3|
 	var in_sig, sigL, sigR;
 	in_sig = In.ar(in, 2);
+	in_sig = Compander.ar(in_sig, in_sig, 0.1,1.0,0.1,0.001,0.1,10);
 	sigL = BLowPass4.ar(in_sig[0], ffreq*0.9, rq*1.05, rq.reciprocal);
 	sigL = BPeakEQ.ar(sigL, 90, 0.5, 5, amp);
 		//sigL = Compander.ar(sigL, sigL, 0.1,1.0,0.1, 0.001,0.1,5);
@@ -237,6 +257,7 @@ SynthDef(\allpassc, {|in out=0 delmod=0.001 dec=8 mix=0.4|
 SynthDef(\stereo_verb, {|in out=0 mix=0.0|
 		var sig,delsig;
 		sig = In.ar(in, 2);
+		sig = Compander.ar(sig, sig, 0.01,1.0,0.01,0.001,0.1,50);
 		sig = FreeVerb2.ar(sig[0], sig[1], mix, 0.9, 0.6);
 		Out.ar(out, sig); }).add;
 
@@ -326,9 +347,9 @@ SynthDef(\stereo_verb, {|in out=0 mix=0.0|
 
 ~rateBus = Array.fill(16, {|i| Bus.control(s, 1).set(1); });
 
-~comb_synth = Synth(\combc, [\in, ~combBus, \mix, 0.0 ], ~effectGroup,\addToTail);
+~comb_synth = Synth(\combc, [\in, ~combBus, \mix, 0.15 ], ~effectGroup,\addToTail);
 ~allpass_synth = Synth(\allpassc, [\in, ~allpassBus, \mix, 0.0 ], ~effectGroup,\addToTail);
-~stereoverb_synth = Synth(\stereo_verb, [\in, ~verbBus, \mix, 0.0], ~effectGroup, \addToTail);
+~stereoverb_synth = Synth(\stereo_verb, [\in, ~verbBus, \mix, 0.15], ~effectGroup, \addToTail);
 Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.05,\ffreq,1500, \out, ~verbBus ],  ~effectGroup, \addToHead );
 
 ~grainbuf_switch = 0;
@@ -343,16 +364,19 @@ Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.05,\ffreq,1500, \out, ~verbBus ],  ~ef
 ~durBus = Array.fill(4, { Bus.control(s, 1).set(0.25); });
 
 /* BUSES */
-/* SCENE 0. 0: pitch 1: startpos 2: looplength */
-	~scene0_buses = Array.fill(3, {|i|
+/* SCENE 0. 0: pitch 1: startpos 2: looplength 3: overlap */
+	~scene0_buses = Array.fill(4, {|i|
 
 		Bus.control(s, 1).set(
 			case
 			{ i == 0} { 1 }
 			{ i == 1 } { 0 }
-			{ i == 2 } { 1 }; );
+			{ i == 2 } { 1 }
+			{ i == 3 } { 0 };
+
+		);
 	});
-/* SCENE 0. 0:pitch 1:pos 2:trate 3:dur 4:amp    */
+/* SCENE 1. 0:pitch 1:pos 2:trate 3:dur 4:amp    */
 	~scene1_buses = Array.fill(5, {|i|
 		Bus.control(s, 1).set(
 			case
@@ -369,7 +393,10 @@ Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.05,\ffreq,1500, \out, ~verbBus ],  ~ef
 /*specs*/
 /* scene 0 */
 ~startPosSpec = [0.0, 0.75, \linear, 0.001].asSpec;
-~looprangeSpec = [0.0001, 5.0, 8, 0.001].asSpec;
+~looprangeSpec = [0.01, 0.9, 8, 0.001].asSpec;
+~overlapSpec = [0,0.5,4, 0.001].asSpec;
+
+
 /* scene 1 */
 ~grainPosBus = Array.fill(4, {  Bus.control(s, 1).set(0.0); });
 ~grainpitchBus = Array.fill(4, { Bus.control(s, 1).set(1); });
@@ -431,6 +458,19 @@ var sc = ~partch_41comb;
 };
 
 
+~scene0_waittime = 0.1;
+~scene0_startpos = 0.0;
+~scene0_looprange = 0.25;
+~scene0_overlap = 0.0;
+~scene0_rate = 1;
+
+/*
+~scene0_checkroutine = Routine({inf.do{
+		    ~scene0_buses[1].get{|item| ~scene0_startpos = item; };
+			~scene0_buses[2].get{|item| ~scene0_waittime = item; };
+		0.1.wait; }; }).play;
+*/
+
 	~fingerchecker = Routine({ inf.do{
 		if ( ( ~all_fingers[0] == 0 ) and: ( ~all_fingers[1] == 0 ) and: ( ~all_fingers[2] == 0 ) and: ( ~all_fingers[3] == 0 ) , {
 			~fingers = \off;
@@ -446,9 +486,29 @@ var sc = ~partch_41comb;
 				case
 				{ ~scene == 0 }
 				{
-					Synth(\radio_looper, [\bufnum, ~radio_samples[2],
-						\startposBus, ~scene0_buses[1].index, \looprangeBus, ~scene0_buses[2].index,
-						\rateBus, ~scene0_buses[0].index, \out, ~verbBus ],~grainbufGroup);
+					fork{
+						~scene0_buses[0].get{|item| ~scene0_rate = item; };
+						~scene0_buses[1].get{|item| ~scene0_startpos = item; };
+						~scene0_buses[2].get{|item| ~scene0_looprange = item; };
+						~scene0_buses[3].get{|item| ~scene0_overlap = item; };
+
+						Synth(\radio_looper, [\bufnum, ~radio_samples[2],\rate,~scene0_rate, \startpos, ~scene0_startpos,
+							\looprange, ~scene0_looprange,\out, ~verb ], ~grainbufGroup);
+
+					};
+
+					~scene0_retrig_routine = Routine({inf.do{ var length;
+						~scene0_buses[0].get{|item| ~scene0_rate = item; };
+						~scene0_buses[1].get{|item| ~scene0_startpos = item; };
+						~scene0_buses[2].get{|item| ~scene0_looprange = item; };
+						~scene0_buses[3].get{|item| ~scene0_overlap = item; };
+                        ("loop_range : "++~scene0_looprange).postln;
+						~grainbufGroup.set(\t_trig, 1, \rate,~scene0_rate,\startpos, ~scene0_startpos, \looprange, ~scene0_looprange,\overlap,~scene0_overlap);
+				        //length = 0.25;
+						length = ( ~scene0_looprange * ~radio_samples[2].numFrames) / 48000;
+						("overlap : "++~scene0_overlap).postln;
+						("length : "++length).postln;
+						length.wait;     }; }).play;
 
 				}
 					{ ~scene == 1 }
@@ -502,7 +562,9 @@ var sc = ~partch_41comb;
 
 				case
 				{ ~scene == 0 } {
-					~grainbufGroup.set(\gate, 0);    }
+					~grainbufGroup.set(\gate, 0);
+					~scene0_retrig_routine.stop;
+				}
 				{ ~scene == 1 } {
 					~grainbufGroup.set(\gate, 0);    }
 				{ ~scene == 2 } { ~grain_routine1.stop; }
@@ -615,7 +677,11 @@ OSCdef(\trillflex2, {|msg|
 
 				if ( msg[4] > 0.01, {
 				case
-				{ ~scene == 0 } {  ~scene0_buses[1].set(~startPosSpec.map(msg[4]).postln; ); }
+				{ ~scene == 0 } {
+					~scene0_buses[1].set(~startPosSpec.map(msg[4]).postln; );
+					~scene0_buses[3].set( ~overlapSpec.map(msg[4]).postln; );
+
+				}
 				{ ~scene == 1 }  {
 					~scene1_buses[1].set(~grainPosSpec.map(msg[4].postln; ));     };
 			    });
@@ -771,35 +837,6 @@ OSCdef(\trillflex4, {|msg|
 
 
 	~prev_scene = 0;
-
-/*
-	~sceneRoutine = Routine({ inf.do{
-		            5.do{|i| ~scene = i;
-			               if ( ~synth_gates[~prev_scene] == \on, {
-				             case
-				{ ~prev_scene == 0 } { ~grainbufGroup.set(\gate, 0);     }
-				{ ~prev_scene == 1 } { ~grainbufGroup.set(\gate, 0);     }
-				{ ~prev_scene == 2 } { ~grain_routine1.stop;   }
-				{ ~prev_scene == 3 } {  ~grain_routine2.stop;  }
-				{ ~prev_scene == 4 } {  ~grain_routine3.stop;  };
-				~synth_gates[~prev_scene] = \off;
-			                       });
-			                 ("scene : "++~scene).postln;
-
-			         case
-			{ ~scene == 1 } { ~grain_rhythms = ~grain_rhythms.scramble; ~partch_tuning = ~partch_tuning.scramble;
- }
-			{ ~scene == 2 } { ~grain_rhythms2 = ~grain_rhythms2.scramble; ~partch_tuning = ~partch_tuning.scramble;
-}
-			{ ~scene == 3 } { ~grain_rhythms3 = ~grain_rhythms2.scramble; ~partch_tuning = ~partch_tuning.scramble;
-};
-
-			60.wait;
-			~prev_scene = ~scene;
-	}; }; }).play;
-*/
-
-
 
 
 /* CRAFT SYNTH */
