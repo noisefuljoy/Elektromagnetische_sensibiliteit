@@ -73,13 +73,23 @@ fork{ var rate, start_pos, loop_range;
 };
 
 
-r = Routine({inf.do{ var length = rrand(0.01,0.3);
-	~grainbufGroup.set(\t_trig, 1, \rate, [0.2,0.4,0.6,0.9,1.1].choose,\looprange, length, \startpos, rrand(0.0,0.5));
+r = Routine({inf.do{ var rate, start_pos, loop_range,length;
+	~scene0_buses[0].get{|item| rate = item; };
+	~scene0_buses[1].get{|item| start_pos = item; };
+	~scene0_buses[2].get{|item| loop_range = item; };
 
-	rrand(0.1,0.2).wait;
+	~grainbufGroup.set(\t_trig, 1, \rate,rate,\startpos, start_pos, \looprange, loop_range);
 
-
+	length = loop_range * ~radio_samples[4].numFrames / 48000;
+	length.wait;
 }; }).play;
+
+
+
+
+
+
+
 
 r.stop;
 ~grainbufGroup.freeAll

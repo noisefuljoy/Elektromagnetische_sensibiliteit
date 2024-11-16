@@ -351,7 +351,7 @@ SynthDef(\stereo_verb, {|in out=0 mix=0.0|
 ~comb_synth = Synth(\combc, [\in, ~combBus, \mix, 0.1], ~effectGroup,\addToTail);
 ~allpass_synth = Synth(\allpassc, [\in, ~allpassBus, \mix, 0.2 ], ~effectGroup,\addToTail);
 ~stereoverb_synth = Synth(\stereo_verb, [\in, ~verbBus, \mix, 0.15], ~effectGroup, \addToTail);
-Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.05,\ffreq,1500, \out, ~verbBus ],  ~effectGroup, \addToHead );
+Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.05,\ffreq,1500, \out, 0 ],  ~effectGroup, \addToHead );
 
 ~grainbuf_switch = 0;
 ~grainbuf_switch2 = 0;
@@ -377,7 +377,7 @@ Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.05,\ffreq,1500, \out, ~verbBus ],  ~ef
 
 		);
 	});
-/* SCENE 1. 0:pitch 1:pos 2:trate 3:dur 4:amp    */
+/* SCENE 1. 0:pitch 1:pos 2:trate 3:dur 4:overlap    */
 	~scene1_buses = Array.fill(5, {|i|
 		Bus.control(s, 1).set(
 			case
@@ -385,8 +385,18 @@ Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.05,\ffreq,1500, \out, ~verbBus ],  ~ef
 			{ i == 1 } { 0 }
 			{ i == 2 } { 5 }
 		    { i == 3 } { 0.1 }
-			{ i == 4 } { 0.75 };
+			{ i == 4 } { 0};
 
+		);
+	});
+
+/* SCENE 2. 0:pitch 1:pos 3:overlap   */
+	~scene2_buses = Array.fill(3, {|i|
+		Bus.control(s, 1).set(
+			case
+			{ i == 0} { 1 }
+			{ i == 1 } { 0 }
+			{ i == 2 } { 0 };
 		);
 	});
 
@@ -527,12 +537,16 @@ var sc = ~partch_41comb;
 						~grain_routine1 = Routine({ inf.do{
 	7.do{|j| var dur = ~grain_rhythms[j], overlap;
 
-			~overlapBus.get{|i| ~grain_overlap = i; };
+							~scene2_buses[3].get{|i| ~grain_overlap = i; };
 							"overlap : ".postln;~grain_overlap.postln;
 
 		//~grainpitchBus[0].set(~partch_tuning.wrapAt(~partch_tuning_specs.map(~grain_pitches[j])));
 
-	Synth(\radio_sampler, [\envbuf, ~env_buf, \bufnum, ~radio_samples[0],\rateBus, ~grainpitchBus[0].index,\amp, 0.1, \dur, dur, \posBus, ~grainPosBus[0].index, \overlap, ~grain_overlap,\out, ~graineq_bus ], ~grain_group );
+	Synth(\radio_sampler, [\envbuf, ~env_buf, \bufnum, ~radio_samples[2],
+								\rateBus, ~scene2_buses[0].index,
+								\amp, 0.1,
+								\dur, dur, \posBus, ~scene2_buses[1].index,
+								\overlap, ~grain_overlap,\out, ~graineq_bus ], ~grain_group );
 		dur.wait; }; } }).play(~grain_clock);
 					}
 					{ ~scene == 3 }
@@ -630,6 +644,9 @@ OSCdef(\trillflex1, {|msg|
 					~scene1_buses[3].set(~durSpec.map(x_val));
 					~scene1_buses[4].set(~grainAmpSpec.map(x_val));
 				}
+				{ ~scene == 2 } {
+					~scene2_buses[2].set(~overlapSpec.map(msg[4].postln; ));
+				};
 
 				//~grain_clock.tempo = ~grainclockSpec.map(x_val);
 				//~overlapBus.set(~grainoverlapSpec.map(x_val) );
@@ -688,7 +705,14 @@ OSCdef(\trillflex2, {|msg|
 
 				}
 				{ ~scene == 1 }  {
-					~scene1_buses[1].set(~grainPosSpec.map(msg[4].postln; ));     };
+					~scene1_buses[1].set(~grainPosSpec.map(msg[4].postln; ));     }
+					{ ~scene == 1 }  {
+					~scene2_buses[1].set(~grainPosSpec.map(msg[4].postln; ));     };
+
+
+
+
+
 			    });
 			});
 
@@ -737,7 +761,7 @@ OSCdef(\trillflex3, {|msg|
 				~scene1_buses[0].set(~partch_tuning.wrapAt(~tuning_map.map(msg[4])));
 				}
 				{ ~scene == 2 } {
-				~grainpitchBus[0].set(~micro_tuning.wrapAt(~tuning_map.map(msg[4])));
+				~scene2_buses[0].set(~micro_tuning.wrapAt(~tuning_map.map(msg[4])));
 				}
 				{ ~scene == 3 } {
 				~grainpitchBus[0].set(~partch_tuning.wrapAt(~tuning_map.map(msg[4])));
@@ -824,7 +848,7 @@ OSCdef(\trillflex4, {|msg|
 				~scene1_buses[0].set(~partch_tuning.wrapAt(~tuning_map.map(msg[4])));
 				}
 				{ ~scene == 2 } {
-				~grainpitchBus[0].set(~micro_tuning.wrapAt(~tuning_map.map(msg[4])));
+				~scene2_buses[0].set(~micro_tuning.wrapAt(~tuning_map.map(msg[4])));
 				}
 				{ ~scene == 3 } {
 				~grainpitchBus[0].set(~partch_tuning.wrapAt(~tuning_map.map(msg[4])));
