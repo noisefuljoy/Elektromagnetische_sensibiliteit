@@ -1,7 +1,58 @@
-
+Server.killAll
 
 ~radio_files = "D:/Samples/radiosamples/shorter/*.wav".pathMatch;
 ~radio_samples = ~radio_files.collect({|item| Buffer.read(s, item); });
+
+//~winenv = Env([0, 1, 0], [0.5, 0.5], [8, -8]);
+~winenv = Signal.sineFill( 1024, 1.0/#[ 1, 2, 3, 5, 8, 13, 21, 34, 55 ].scramble );
+~winenv.put(~winenv.size-1, 0);
+~grainbufenv = Buffer.sendCollection(s, ~winenv, 1);
+
+/* BUSES */
+/* SCENE 0. 0: pitch 1: startpos 2: looplength */
+	~scene2_buses = Array.fill(3, {|i|
+
+		Bus.control(s, 1).set(
+			case
+			{ i == 0} { 1 }
+			{ i == 1 } { 0 }
+			{ i == 2 } { 1 }; );
+	});
+
+~scene2_buses[0].set(0.125);
+
+SynthDef(\radio_sampler, {|out=0 amp=0.3 bufnum rateBus envbuf dur=0.1 posBus overlap=1|
+		var env, sig, rate, pos;
+	    rate = In.kr(rateBus, 1);
+	    pos = In.kr(posBus, 1);
+		env = Osc1.ar(envbuf, dur*overlap);
+		sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum),1, BufFrames.kr(bufnum) * pos,loop: 0);
+	//sig = MidEQ.ar(sig, 1000, 0.1,9);
+		Out.ar(out, Pan2.ar(sig*env*overlap.reciprocal*amp)); }).store;
+
+~grain_routine = Routine({ inf.do{ var dur = rrand(0.25,0.5), overlap=rrand(0.0,0.2);
+	Synth(\radio_sampler, [\envbuf, ~grainbufenv, \bufnum, ~radio_samples[0],\dur,dur+overlap, \rateBus, ~scene2_buses[0], \posBus, ~scene2_buses[1]]);
+	dur.wait;
+}; }).play;
+
+~grain_routine.stop;
+
+~radio_samples.size
+SynthDef(\transition_sound,{|out amp=0.125 bufnum rate=1 gate=1 gen_index=0.3|
+
+					var env = EnvGen.ar(Env.adsr(\attack.kr(2),0.0,1,\release.kr(0.5),curve: 3.0),gate,doneAction:2);
+					var vib = Gendy1.kr(1,1,1,1,0.5, 90,mul:gen_index,add:1);
+
+
+					var dsig = PlayBuf.ar(1, bufnum, BufRateScale.kr(bufnum) * rate * vib, 0, 0,1) * 1;
+					Out.ar(out, dsig * env );
+				}).store;
+
+a = Synth(\transition_sound, [\bufnum, ~radio_samples[5] ]);
+
+a.set(\gen_index, 0.5);
+
+a.set(\gate,0);
 
 ~grainbufGroup = Group.new;
 
