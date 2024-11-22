@@ -195,21 +195,14 @@ SynthDef(\radio_sampler, {|out=0 amp=0.4 bufnum rateBus envbuf dur=0.1 posBus ov
 	//sig = MidEQ.ar(sig, 1000, 0.1,9);
 		Out.ar(out, Pan2.ar(sig*env*amp, pan)); }).store;
 
-/*
-SynthDef(\grain_eq, {|out=0 in amp=1 ffreq=800 rq=0.3|
-	var sig, in_sig, sigL, sigR;
-	in_sig = In.ar(in, 2);
-	//in_sig = Compander.ar(in_sig, in_sig, 0.1,1.0,0.1,0.001,0.1,10);
-	sigL = BLowPass4.ar(in_sig[0], ffreq*0.9, rq*1.05, rq.reciprocal*0.6);
-	sigL = BPeakEQ.ar(sigL, 90, 0.5, 5, amp);
-		//sigL = Compander.ar(sigL, sigL, 0.1,1.0,0.1, 0.001,0.1,5);
-	sigR = BLowPass4.ar(in_sig[1], ffreq*1.05, rq*0.95, rq.reciprocal*0.6);
-	sigR = BPeakEQ.ar(sigL, 110, 0.5, 5,amp);
-		//sigR = Compander.ar(sigR, sigR, 0.1,1.0,0.1, 0.001,0.1,5);
-		sig = FreeVerb2.ar(sigL, sigR, 0.2,0.9,0.6);
-	Out.ar(out, sig);
-}).store;
-*/
+SynthDef(\radio_sampler_scene3, {|out=0 amp=0.4 bufnum rate envbuf dur=0.1 posBus overlap=1 pan=0|
+		var env, sig, pos;
+	    pos = In.kr(posBus, 1);
+		env = Osc1.ar(envbuf, dur*overlap);
+		sig = PlayBuf.ar(1, bufnum, rate * BufRateScale.kr(bufnum),1, BufFrames.kr(bufnum) * pos,loop: 0);
+	    //sig = MidEQ.ar(sig, 1000, 0.1,9);
+		Out.ar(out, Pan2.ar(sig*env*amp, pan)); }).store;
+
 
 SynthDef(\grain_eq, {|out=0 in amp=1 boostfreq=300 cutfreq=3000 rq=0.5|
 	var sig, in_sig, sigL, sigR;
@@ -324,27 +317,56 @@ var onsets = Onsets.kr(chain,thresh);
 	RecordBuf.ar(input, recbuf,loop:0,trigger:onsets);
  }).store;
 
-SynthDef(\combc, {|in out=0 delmod=0.001 dec=8 mix=0.05|
+
+SynthDef(\filter, {|in out=0 modfreq=0.01|
+		var sig,sigL,sigL_low,sigL_mid,sigL_hi, sigR,sigR_low,sigR_mid,sigR_hi;
+		sig = In.ar(in, 2);
+		sigL_low = MoogFF.ar(sig[0], SinOsc.kr(LFNoise0.kr(0.2).range(modfreq*0.5,modfreq)).range(25, 900), 3);
+		//sigL_low = HPF.ar(LPF.ar(sigL_low, 405),25);
+		sigL_mid = MoogFF.ar(sig[0], SinOsc.kr(LFNoise0.kr(0.4).range(modfreq*0.25,modfreq*0.5),-0.25).range(900, 3000), 3);
+		//sigL_mid = HPF.ar(LPF.ar(sigL_mid, 1100),490);
+		//sigL_hi = MoogFF.ar(sig[0], SinOsc.kr(modfreq*0.25,0.4).range(900, 5000), 3);
+		//sigL_hi = HPF.ar(LPF.ar(sigL_hi, 50050),890);
+
+		sigR_low = MoogFF.ar(sig[1], SinOsc.kr(LFNoise0.kr(0.4).range(modfreq*0.5,modfreq*2),-2pi).range(35, 1000), 3);
+		//sigR_low = HPF.ar(LPF.ar(sigR_low, 405),25);
+		sigR_mid = MoogFF.ar(sig[1], SinOsc.kr(LFNoise0.kr(0.1).range(modfreq*0.125,modfreq*0.25),pi).range(1000, 9000), 3);
+		//sigR_mid = HPF.ar(LPF.ar(sigR_mid, 1100),490);
+		//sigR_hi = MoogFF.ar(sig[1], SinOsc.kr(modfreq*0.25,0.1).range(900, 5000), 3);
+		//sigR_hi = HPF.ar(LPF.ar(sigR_hi, 50050),890);
+
+		sigL = Mix([sigL_low, sigL_mid]);
+		sigR = Mix([sigR_low, sigR_mid]);
+
+		Out.ar(out, [sigL, sigR] ); }).store;
+
+
+
+
+SynthDef(\combc_new, {|in out=0 delmod=0.001 dec=0.001 mix=0.05|
 		var sig,delsig;
-		sig = In.ar(in, 1);
+		sig = In.ar(in, 2);
 		//sig = Compander.ar(sig, sig, 0.001,1.0,0.001,0.001,0.1,100);
 		delsig = sig;
+
+
 		3.do{|i|
-			n = (i + 1) * 0.1;
+			n = (i + 1) * 0.025;
 			o = (i + 1) * 0.01;
-			e = (i + 1) * 0.1;
-			delsig = CombC.ar(Decay.ar(delsig, 0.2), 0.2, n, e + dec, 0.3, delsig * 0.7);
+			e = (i + 1) * 1;
+			delsig = CombC.ar(delsig, 0.075, n, 1+e, 0.15, delsig * 0.85);
 			//delsig = CombC.ar(sig, 0.2, SinOsc.kr(delmod+o).range(0.01, n), e + dec, 0.3, delsig*0.7);
 		};
+
 
 		sig = (delsig * mix) + (sig * ( 1 - mix) );
 
 		//sig = LPF.ar(sig, 800);
-		Out.ar(out, sig!2 ); }).add;
+		Out.ar(out, sig ); }).store;
 
 SynthDef(\allpassc, {|in out=0 delmod=0.001 dec=8 mix=0.4|
 		var sig,delsig;
-		sig = In.ar(in, 1);
+		sig = In.ar(in, 2);
 
 		delsig = sig;
 		3.do{|i|
@@ -358,7 +380,7 @@ SynthDef(\allpassc, {|in out=0 delmod=0.001 dec=8 mix=0.4|
 		sig = (delsig * mix) + (sig * ( 1 - mix) );
 
 		//sig = LPF.ar(sig, 800);
-		Out.ar(out, sig!2 ); }).add;
+		Out.ar(out, sig ); }).add;
 
 SynthDef(\stereo_verb, {|in out=0 mix=0.0|
 		var sig,delsig;
@@ -427,8 +449,9 @@ SynthDef(\stereo_verb, {|in out=0 mix=0.0|
 
 ~nyquist = s.sampleRate * 0.5;
 
-~combBus = Bus.audio(s, 1);
-~allpassBus = Bus.audio(s, 1);
+	~filtBus = Bus.audio(s, 2);
+~combBus = Bus.audio(s, 2);
+~allpassBus = Bus.audio(s, 2);
 ~verbBus = Bus.audio(s, 2);
 
 ~clocks = Array.fill(4, { TempoClock.new(1); });
@@ -464,7 +487,8 @@ SynthDef(\stereo_verb, {|in out=0 mix=0.0|
 
 ~rateBus = Array.fill(16, {|i| Bus.control(s, 1).set(1); });
 
-~comb_synth = Synth(\combc, [\in, ~combBus, \mix, 0.1], ~effectGroup,\addToTail);
+~filt_synth = Synth(\filter, [\in, ~filtBus, \modfreq, 0.1], ~effectGroup, \addToTail);
+~comb_synth = Synth(\combc_new, [\in, ~combBus,\dec,0, \mix, 0.05], ~effectGroup,\addToTail);
 ~allpass_synth = Synth(\allpassc, [\in, ~allpassBus, \mix, 0.25 ], ~effectGroup,\addToTail);
 ~stereoverb_synth = Synth(\stereo_verb, [\in, ~verbBus, \mix, 0.15], ~effectGroup, \addToTail);
 //Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.15,\ffreq,1500, \out, 0 ],  ~effectGroup, \addToHead );
@@ -480,6 +504,12 @@ Synth(\grain_eq, [\in, ~graineq_bus,\rq,0.75,\boostfreq,500,\cutfreq,5000,\amp,1
 
 ~hanning = Signal.hanningWindow(1024);
 ~hanning_env = Buffer.sendCollection(s, ~hanning, 1);
+
+~rect = Signal.rectWindow(1024);
+~rect_env = Buffer.sendCollection(s, ~rect, 1);
+
+~welch = Signal.welchWindow(1024);
+~welch_env = Buffer.sendCollection(s, ~welch, 1);
 
 
 ~trateBus = Array.fill(4, { Bus.control(s, 1).set(10); });
@@ -522,8 +552,12 @@ t = ScalaTunings.at('partch_41comb');
 ~sc2_tuningMap_first = [0, 29, \linear, 2].asSpec;
 ~sc2_tuningMap_second = [29, 5, \linear, 1].asSpec;
 ~sc2_tuningMap_third = [7, 29, \linear, 1].asSpec;
-~sc2_tuningMap_four = [59, 0, \linear, 2].asSpec;
+~sc2_tuningMap_four = [29, 0, \linear, 2].asSpec;
 
+~sc3_tuningMap_first = [0, 29, \linear, 2].asSpec;
+~sc3_tuningMap_second = [29, 5, \linear, 1].asSpec;
+~sc3_tuningMap_third = [7, 29, \linear, 1].asSpec;
+~sc3_tuningMap_four = [29, 0, \linear, 2].asSpec;
 
 t = ScalaTunings.at('eikosany');
 ~eikosany = Tuning.eikosany;
@@ -535,7 +569,6 @@ t = ScalaTunings.at('eikosany');
 	{ i >= 40 and: i < 60 } { ~eikosany.ratios.wrapAt( i ) * 2 }
 
 	});
-
 
 
 t = ScalaTunings.at('pentatetra1');
@@ -588,16 +621,33 @@ t = ScalaTunings.at('pentatetra1');
 	~scene2_buses = Array.fill(6, {|i|
 		Bus.control(s, 1).set(
 			case
-		    { i == 0} { ~eikosany_tuning[0]; }
-		    { i == 1 } { ~eikosany_tuning[1]; }
-		    { i == 2 } { ~eikosany_tuning[2]; }
-		    { i == 3 } { ~eikosany_tuning[3]; }
+		    { i == 0} { ~pentatetra_tuning[0]; }
+		    { i == 1 } { ~pentatetra_tuning[1]; }
+		    { i == 2 } { ~pentatetra_tuning[2]; }
+		    { i == 3 } { ~pentatetra_tuning[3]; }
 			{ i == 4 } { 0.0 }
 			{ i == 5 } { 1 }; );
 	});
 
 /* SCENE 3. 0: pitch_grain0 1: pitch_grain1 2: pitch_grain2 3:pitch_grain4  4: startpos 5: looplength */
 	~scene3_buses = Array.fill(9, {|i|
+		Bus.control(s, 1).set(
+			case
+		    { i == 0} {  ~eikosany_tuning[0]; }
+		    { i == 1 } { ~eikosany_tuning[1]; }
+		    { i == 2 } { ~eikosany_tuning[2]; }
+		    { i == 3 } { ~eikosany_tuning[3]; }
+			{ i == 4 } { 0.0 }
+			{ i == 5 } { 1 }
+			{ i == 6 } { 1 }
+			{ i == 7 } { 1 }
+			{ i == 8 } { 1 };
+
+		);
+	});
+
+/* SCENE 4. 0: pitch_grain0 1: pitch_grain1 2: pitch_grain2 3:pitch_grain4  4: startpos 5: looplength */
+	~scene4_buses = Array.fill(9, {|i|
 		Bus.control(s, 1).set(
 			case
 		    { i == 0} {  ~eikosany_tuning[0]; }
@@ -632,22 +682,59 @@ t = ScalaTunings.at('pentatetra1');
 
 /* scene 2 */
 
-	~scene2_clock = TempoClock.new(0.75);
-	~scene2_dur = 1;
-	~sc2_posSpec = [0.0, 0.8, \linear, 0.01].asSpec;
+~scene2_clock = TempoClock.new(0.75);
+~scene2_dur = 1;
+~sc2_posSpec = [0.0, 0.8, \linear, 0.01].asSpec;
 ~sc2_clockindex = [0, 29, \linear, 1].asSpec;
- ~sc2_durindex = [0, 29, -2, 1].asSpec;
+~sc2_durindex = [0, 29, -2, 1].asSpec;
 ~sc2_clock_arr = Array.fill(30, {|i| (i+ 1) * 0.125 });
 ~sc2_dur_arr = Array.fill(30, {|i| 4 - (i* 0.13620689655172); });
 
 //~sc2_dur_arr.wrapAt(~sc2_durindex.map(0.75));
 /* scene 3 */
-~scene3_durs = [1,1,1,1];
-	~sc3_dur_index1_spec = [0, 29, \linear, 1].asSpec;
-	~sc3_dur_index2_spec = [29, 0, \linear, 1].asSpec;
-	~sc3_dur_index3_spec = [0, 29, 5, 1].asSpec;
-	~sc3_dur_index4_spec = [0, 29, -5, 1].asSpec;
-~sc3_dur_arr = Array.geom(30,0.025, 1.2);
+
+
+
+
+	~scene3_rates1 = Array.fill(30,
+		{|i|
+			Array.fill(5, {|j|
+				~eikosany_tuning.wrapAt(j+i); });    });
+		30.do{|i| ~scene3_rates1[i] = ~scene3_rates1[i].scramble; };
+
+	~scene3_rates2 = Array.fill(30,
+		{|i|
+			Array.fill(5, {|j|
+				~eikosany_tuning.wrapAt(j+ (i*2) ); });    });
+		30.do{|i| ~scene3_rates2[i] = ~scene3_rates2[i].scramble; };
+
+	~scene3_rate3 = Array.fill(30,
+		{|i|
+			Array.fill(5, {|j|
+				~eikosany_tuning.wrapAt(59-(j+i)); });    });
+	30.do{|i| ~scene3_rate3[i] = ~scene3_rate3[i].scramble * 0.5 };
+
+	~scene3_rate4 = Array.fill(30,
+		{|i|
+			Array.fill(5, {|j|
+				~eikosany_tuning.wrapAt( 59 - ( j+ (i*2) ) ); });    });
+	30.do{|i| ~scene3_rate4[i] = ~scene3_rate4[i].scramble * 0.25 };
+
+~scene3_melody_spec = [0, 29,\linear, 1].asSpec;
+~scene3_melody_selector = 0;
+
+
+~scene3_rhythm = Array.fib(5,0.03125,0.0125);
+
+~scene3_durs = [~scene3_rhythm,~scene3_rhythm,~scene3_rhythm,~scene3_rhythm];
+~scene3_rates = [~scene3_rates1,~scene3_rates2,~scene3_rate3,~scene3_rate4];
+
+	~sc3_dur_arr = Array.geom(30,0.025, 1.2);
+	~sc3_dur_index1_spec = [0.25, 1.0, -4, 0.1].asSpec;
+	~sc3_dur_index2_spec = [0.25, 1.0, 4, 0.1].asSpec;
+	~sc3_dur_index3_spec = [0.25, 1.0, 1, 0.1].asSpec;
+	~sc3_dur_index4_spec = [0.25, 1.0, -1, 0.1].asSpec;
+
 
 
 
@@ -657,6 +744,54 @@ t = ScalaTunings.at('pentatetra1');
 ~scene3_clockSpec = [0.1, 3.0, 1, 0.001].asSpec;
 
 
+/* scene 4 */
+	~scene4_rates1 = Array.fill(30,
+		{|i|
+			Array.fill(8, {|j|
+				~eikosany_tuning.wrapAt(j+i); });    });
+		30.do{|i| ~scene3_rates1[i] = ~scene3_rates1[i].scramble; };
+
+	~scene4_rates2 = Array.fill(30,
+		{|i|
+			Array.fill(8, {|j|
+				~eikosany_tuning.wrapAt(j+ (i*2) ); });    });
+		30.do{|i| ~scene3_rates2[i] = ~scene3_rates2[i].scramble; };
+
+	~scene4_rate3 = Array.fill(30,
+		{|i|
+			Array.fill(8, {|j|
+				~eikosany_tuning.wrapAt(59-(j+i)); });    });
+	30.do{|i| ~scene3_rate3[i] = ~scene3_rate3[i].scramble * 0.5 };
+
+	~scene4_rate4 = Array.fill(30,
+		{|i|
+			Array.fill(8, {|j|
+				~eikosany_tuning.wrapAt( 59 - ( j+ (i*2) ) ); });    });
+	30.do{|i| ~scene3_rate4[i] = ~scene3_rate4[i].scramble * 0.25 };
+
+~scene4_melody_spec = [0, 29,\linear, 1].asSpec;
+~scene4_melody_selector = 0;
+
+
+~scene4_rhythm = Array.fib(8,0.03125,0.0125);
+~scene4_rhythm1 = ~scene4_rhythm.scramble;
+~scene4_rhythm2 = ~scene4_rhythm.scramble;
+~scene4_rhythm3 = ~scene4_rhythm.scramble;
+~scene4_rhythm4 = ~scene4_rhythm.scramble;
+
+~scene4_durs = [~scene4_rhythm1,~scene4_rhythm2,~scene4_rhythm3,~scene4_rhythm4];
+~scene4_rates = [~scene4_rates1,~scene4_rates2,~scene4_rate3,~scene4_rate4];
+
+	~sc4_dur_arr = Array.geom(30,0.025, 1.2);
+	~sc4_dur_index1_spec = [0.0625, 0.4, -4, 0.001].asSpec;
+	~sc4_dur_index2_spec = [0.0625, 0.4, 4, 0.001].asSpec;
+	~sc4_dur_index3_spec = [0.0625, 0.4, 1, 0.001].asSpec;
+	~sc4_dur_index4_spec = [0.0625, 0.4, -1, 0.001].asSpec;
+
+~scene4_clock = TempoClock.new(0.8);
+~scene4_durSpec = [2.0, 0.001, 1, 0.001].asSpec;
+~scene4_posSpec = [0.0, 0.75, 1, 0.01].asSpec;
+~scene4_clockSpec = [0.1, 3.0, 1, 0.001].asSpec;
 
 
 ~grainPosSpec = [0.0, 0.9, \linear, 0.001].asSpec;
@@ -678,7 +813,7 @@ t = ScalaTunings.at('pentatetra1');
 
 ~fingers = \off;
 ~all_fingers = [0,0,0,0];
-~synth_gates = [\off, \off, \off, \off];
+~synth_gates = [\off, \off, \off, \off, \off];
 
 ~scene = 0;
 
@@ -854,69 +989,157 @@ var sc = ~partch_41comb;
 						0.1.wait; }; }).play;
 					*/
 
-						~scene3_pat1_grain_routine = Routine({ inf.do{ var dur = 1, overlap=rrand(1,0.2);
+						~scene3_pat1_grain_routine = Routine({ inf.do{
+						var sample = ~radio_samples[4];
+						5.do{|i| var pan = [-1.0, 0.5, 0, 0.5, 1.0];
 						//~scene2_dur.postln;
 						if ( ~global_freeze == \off, {
 							if ( ~flex_gates[0] == \open, {
-								Synth(\radio_sampler, [\amp,0.8,\envbuf, ~hanning_env, \pan,0.75,\bufnum, ~radio_samples[4],\dur,~scene3_durs[0],
-									\rateBus, ~scene3_buses[0].index, \posBus, ~scene3_buses[4].index, \out,~graineq_bus ], ~synthGroup); });
+									Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~rect_env, \pan,pan[i],\bufnum, sample,\dur,~scene3_durs[0][i],
+										\rate, ~scene3_rates[0][~scene3_melody_selector][i], \posBus, ~scene3_buses[4].index, \out,~combBus ], ~synthGroup); });
 						},
 						{
 							if ( (~flex_gates[0] == \open) or: (~flex_gates[1] == \open) or: (~flex_gates[2] == \open) or: (~flex_gates[3] == \open) , {
-								Synth(\radio_sampler, [\amp,0.8,\envbuf, ~hanning_env, \pan,0.75,\bufnum, ~radio_samples[4],\dur,~scene3_durs[0],
-									\rateBus, ~scene3_buses[0].index, \posBus, ~scene3_buses[4].index, \out,~graineq_bus ], ~synthGroup); });
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~rect_env, \pan,0.75,\bufnum, sample,\dur,~scene3_durs[0][i],
+									\rate, ~scene3_rates[0][~scene3_melody_selector][i], \posBus, ~scene3_buses[4].index, \out,~combBus ], ~synthGroup); });
 							});
-							~scene3_durs[0].wait;
+							~scene3_durs[0][i].wait;
+						};
 					}; }).play(~scene3_clock);
 
-					~scene3_pat2_grain_routine = Routine({ inf.do{ var dur = 1, overlap=rrand(1,0.2);
+					~scene3_pat2_grain_routine = Routine({ inf.do{
+						var sample = ~radio_samples[4];
+						5.do{|i| var pan = [1.0, 0.5, 0, -0.5, -1.0];
 						//~scene2_dur.postln;
 						if ( ~global_freeze == \off, {
 							if ( ~flex_gates[1] == \open, {
-								Synth(\radio_sampler, [\amp,0.8,\envbuf, ~hanning_env, \pan,0.75,\bufnum, ~radio_samples[4],\dur,~scene3_durs[1],
-									\rateBus, ~scene3_buses[1].index, \posBus, ~scene3_buses[4].index, \out,~graineq_bus ], ~synthGroup); });
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~rect_env, \pan,pan[i],\bufnum, sample,\dur,~scene3_durs[1][i],
+									\rate, ~scene3_rates[1][~scene3_melody_selector][i], \posBus, ~scene3_buses[4].index, \out,~combBus ], ~synthGroup); });
 						},
 						{
 							if ( (~flex_gates[0] == \open) or: (~flex_gates[1] == \open) or: (~flex_gates[2] == \open) or: (~flex_gates[3] == \open) , {
-								Synth(\radio_sampler, [\amp,0.8,\envbuf, ~hanning_env, \pan,0.75,\bufnum, ~radio_samples[4],\dur,~scene3_durs[1],
-									\rateBus, ~scene3_buses[1].index, \posBus, ~scene3_buses[4].index, \out,~graineq_bus ], ~synthGroup); });
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~rect_env, \pan,pan[i],\bufnum, sample,\dur,~scene3_durs[1][i],
+									\rate, ~scene3_rates[1][~scene3_melody_selector][i], \posBus, ~scene3_buses[4].index, \out,~combBus ], ~synthGroup); });
 							});
-							~scene3_durs[1].wait;
+							~scene3_durs[1][i].wait;
+							};
 					}; }).play(~scene3_clock);
 
-					~scene3_pat3_grain_routine = Routine({ inf.do{ var dur = 1, overlap=rrand(1,0.2);
+					~scene3_pat3_grain_routine = Routine({ inf.do{
+						var sample = ~radio_samples[4];
+						5.do{|i| var pan = [0.5, 0.25, 0, -0.25, -0.5];
 						//~scene2_dur.postln;
 						if ( ~global_freeze == \off, {
 							if ( ~flex_gates[2] == \open, {
-								Synth(\radio_sampler, [\amp,0.8,\envbuf, ~hanning_env, \pan,0.75,\bufnum, ~radio_samples[4],\dur,~scene3_durs[2],
-									\rateBus, ~scene3_buses[2].index, \posBus, ~scene3_buses[4].index, \out,~graineq_bus ], ~synthGroup); });
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~rect_env, \pan,pan[i],\bufnum, sample,\dur,~scene3_durs[2][i],
+									\rate, ~scene3_rates[2][~scene3_melody_selector][i],  \posBus, ~scene3_buses[4].index, \out,~combBus ], ~synthGroup); });
 						},
 						{
 							if ( (~flex_gates[0] == \open) or: (~flex_gates[1] == \open) or: (~flex_gates[2] == \open) or: (~flex_gates[3] == \open) , {
-								Synth(\radio_sampler, [\amp,0.8,\envbuf, ~hanning_env, \pan,0.75,\bufnum, ~radio_samples[4],\dur,~scene3_durs[2],
-									\rateBus, ~scene3_buses[2].index, \posBus, ~scene3_buses[4].index, \out,~graineq_bus ], ~synthGroup); });
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~rect_env, \pan,pan[i],\bufnum, sample,\dur,~scene3_durs[2][i],
+									\rate, ~scene3_rates[2][~scene3_melody_selector][i], \posBus, ~scene3_buses[4].index, \out,~combBus ], ~synthGroup); });
 							});
-							~scene3_durs[2].wait;
+							~scene3_durs[2][i].wait;
+						};
 					}; }).play(~scene3_clock);
 
-					~scene3_pat4_grain_routine = Routine({ inf.do{ var dur = 1, overlap=rrand(1,0.2);
+					~scene3_pat4_grain_routine = Routine({ inf.do{
+						var sample = ~radio_samples[4];
+						5.do{|i| var pan = [-0.5, -0.25, 0, 0.25, -0.5];
 						//~scene2_dur.postln;
 						if ( ~global_freeze == \off, {
 							if ( ~flex_gates[3] == \open, {
-								Synth(\radio_sampler, [\amp,0.8,\envbuf, ~hanning_env, \pan,0.75,\bufnum, ~radio_samples[4],\dur,~scene3_durs[3],
-									\rateBus, ~scene3_buses[3].index, \posBus, ~scene3_buses[4].index, \out,~graineq_bus ], ~synthGroup); });
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~rect_env, \pan,pan[i],\bufnum, sample,\dur,~scene3_durs[3][i],
+									\rate, ~scene3_rates[3][~scene3_melody_selector][i],  \posBus, ~scene3_buses[4].index, \out,~combBus ], ~synthGroup); });
 						},
 						{
 							if ( (~flex_gates[0] == \open) or: (~flex_gates[1] == \open) or: (~flex_gates[2] == \open) or: (~flex_gates[3] == \open) , {
-								Synth(\radio_sampler, [\amp,0.8,\envbuf, ~hanning_env, \pan,0.75,\bufnum, ~radio_samples[4],\dur,~scene3_durs[3],
-									\rateBus, ~scene3_buses[3].index, \posBus, ~scene3_buses[4].index, \out,~graineq_bus ], ~synthGroup); });
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~rect_env, \pan,pan[i],\bufnum,sample,\dur,~scene3_durs[3][i],
+									\rate, ~scene3_rates[3][~scene3_melody_selector][i],  \posBus, ~scene3_buses[4].index, \out,~combBus ], ~synthGroup); });
 							});
-							~scene3_durs[3].wait;
+							~scene3_durs[3][i].wait;
+						};
 					}; }).play(~scene3_clock);
 
 					}
 					{ ~scene == 4 }
 					{
+
+					"start scene 4 patterns".postln;
+
+						~scene4_pat1_grain_routine = Routine({ inf.do{
+						var sample = ~radio_samples[3], durs = ~scene4_durs, rates = ~scene4_rates;
+						8.do{|i| var pan = [-1.0, 0.5, 0, 0.5, 1.0];
+						//~scene2_dur.postln;
+						if ( ~global_freeze == \off, {
+
+								if ( ~flex_gates[0] == \open, {
+									Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~welch_env, \pan,pan[i],\bufnum, sample,\dur,durs[0][i]*0.2,
+										\rate, rates[0][~scene3_melody_selector][i], \posBus, ~scene4_buses[4].index, \out,~filtBus ], ~synthGroup); });
+						},
+						{
+							if ( (~flex_gates[0] == \open) or: (~flex_gates[1] == \open) or: (~flex_gates[2] == \open) or: (~flex_gates[3] == \open) , {
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~welch_env, \pan,0.75,\bufnum, sample,\dur,durs[0][i]*0.2,
+									\rate, rates[0][~scene3_melody_selector][i], \posBus, ~scene4_buses[4].index, \out,~filtBus ], ~synthGroup); });
+							});
+							durs[0][i].wait;
+						};
+					}; }).play(~scene4_clock);
+
+					~scene4_pat2_grain_routine = Routine({ inf.do{
+						var sample = ~radio_samples[3], durs = ~scene4_durs, rates = ~scene4_rates;
+						8.do{|i| var pan = [1.0, 0.5, 0, -0.5, -1.0];
+						//~scene2_dur.postln;
+						if ( ~global_freeze == \off, {
+							if ( ~flex_gates[1] == \open, {
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~welch_env, \pan,pan[i],\bufnum, sample,\dur,durs[1][i]*0.2,
+									\rate, rates[1][~scene4_melody_selector][i], \posBus, ~scene4_buses[4].index, \out,~filtBus ], ~synthGroup); });
+						},
+						{
+							if ( (~flex_gates[0] == \open) or: (~flex_gates[1] == \open) or: (~flex_gates[2] == \open) or: (~flex_gates[3] == \open) , {
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~welch_env, \pan,pan[i],\bufnum, sample,\dur,durs[1][i]*0.2,
+									\rate, rates[1][~scene4_melody_selector][i], \posBus, ~scene4_buses[4].index, \out,~filtBus ], ~synthGroup); });
+							});
+							durs[1][i].wait;
+							};
+					}; }).play(~scene4_clock);
+
+					~scene4_pat3_grain_routine = Routine({ inf.do{
+						var sample = ~radio_samples[3], durs = ~scene4_durs, rates = ~scene4_rates;
+						8.do{|i| var pan = [0.5, 0.25, 0, -0.25, -0.5];
+						//~scene2_dur.postln;
+						if ( ~global_freeze == \off, {
+							if ( ~flex_gates[2] == \open, {
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~welch_env, \pan,pan[i],\bufnum, sample,\dur,durs[2][i]*0.2,
+									\rate, rates[2][~scene4_melody_selector][i],  \posBus, ~scene4_buses[4].index, \out,~filtBus ], ~synthGroup); });
+						},
+						{
+							if ( (~flex_gates[0] == \open) or: (~flex_gates[1] == \open) or: (~flex_gates[2] == \open) or: (~flex_gates[3] == \open) , {
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~welch_env, \pan,pan[i],\bufnum, sample,\dur,durs[2][i]*0.2,
+									\rate, rates[2][~scene4_melody_selector][i], \posBus, ~scene4_buses[4].index, \out,~filtBus ], ~synthGroup); });
+							});
+							durs[2][i].wait;
+						};
+					}; }).play(~scene4_clock);
+
+					~scene4_pat4_grain_routine = Routine({ inf.do{
+						var sample = ~radio_samples[3], durs = ~scene4_durs, rates = ~scene4_rates;
+						8.do{|i| var pan = [-0.5, -0.25, 0, 0.25, -0.5];
+						//~scene2_dur.postln;
+						if ( ~global_freeze == \off, {
+							if ( ~flex_gates[3] == \open, {
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~welch_env, \pan,pan[i],\bufnum, sample,\dur,durs[3][i]*0.2,
+									\rate, rates[3][~scene4_melody_selector][i],  \posBus, ~scene4_buses[4].index, \out,~filtBus ], ~synthGroup); });
+						},
+						{
+							if ( (~flex_gates[0] == \open) or: (~flex_gates[1] == \open) or: (~flex_gates[2] == \open) or: (~flex_gates[3] == \open) , {
+								Synth(\radio_sampler_scene3, [\amp,0.8,\envbuf, ~welch_env, \pan,pan[i],\bufnum,sample,\dur,durs[3][i]*0.2,
+									\rate, rates[3][~scene4_melody_selector][i],  \posBus, ~scene4_buses[4].index, \out,~filtBus ], ~synthGroup); });
+							});
+							durs[3][i].wait;
+						};
+					}; }).play(~scene4_clock);
+
 
 					};
 
@@ -955,7 +1178,14 @@ var sc = ~partch_41comb;
 					~scene3_pat4_grain_routine.stop;
 					   }
 				{ ~scene == 4 } {
-						~scene4_grain_routine.stop; };
+
+					~scene4_pat1_grain_routine.stop;
+					~scene4_pat2_grain_routine.stop;
+					~scene4_pat3_grain_routine.stop;
+					~scene4_pat4_grain_routine.stop;
+
+
+				};
 			"synth off".postln;
 			~synth_gates[~scene] = \off;
 			});
@@ -1026,16 +1256,26 @@ OSCdef(\trillflex1, {|msg|
 
 				}
 				{ ~scene == 3 } {
-					~scene3_durs[0] = ~sc3_dur_arr.wrapAt(~sc3_dur_index1_spec.map(msg[4]));
-					~scene3_durs[1] = ~sc3_dur_arr.wrapAt(~sc3_dur_index2_spec.map(msg[4]));
-					~scene3_durs[2] = ~sc3_dur_arr.wrapAt(~sc3_dur_index3_spec.map(msg[4]));
-					~scene3_durs[3] = ~sc3_dur_arr.wrapAt(~sc3_dur_index4_spec.map(msg[4]));
 
+					~scene3_durs[0] = ~scene3_rhythm * ~sc3_dur_index1_spec.map(msg[4]);
+					~scene3_durs[1] = ~scene3_rhythm * ~sc3_dur_index2_spec.map(msg[4]);
+					~scene3_durs[2] = ~scene3_rhythm * ~sc3_dur_index3_spec.map(msg[4]);
+					~scene3_durs[3] = ~scene3_rhythm * ~sc3_dur_index4_spec.map(msg[4]);
 					//~scene2_buses[2].set(~overlapSpec.map(msg[4].postln; ));
+					//~scene3_buses[0].set(~micro_tuning_scene2.wrapAt(~tuning_map.map(msg[4])));
 
+				}
+				{ ~scene == 4 } {
+
+					~scene4_durs[0] = ~scene4_rhythm1 * ~sc4_dur_index1_spec.map(msg[4]);
+					~scene4_durs[1] = ~scene4_rhythm2 * ~sc4_dur_index2_spec.map(msg[4]);
+					~scene4_durs[2] = ~scene4_rhythm3 * ~sc4_dur_index3_spec.map(msg[4]);
+					~scene4_durs[3] = ~scene4_rhythm4 * ~sc4_dur_index4_spec.map(msg[4]);
+					//~scene2_buses[2].set(~overlapSpec.map(msg[4].postln; ));
 					//~scene3_buses[0].set(~micro_tuning_scene2.wrapAt(~tuning_map.map(msg[4])));
 
 				};
+
 
 				//~grain_clock.tempo = ~grainclockSpec.map(x_val);
 				//~overlapBus.set(~grainoverlapSpec.map(x_val) );
@@ -1122,7 +1362,23 @@ OSCdef(\trillflex2, {|msg|
 
 				}
 				{ ~scene == 3 }  {
-					~scene3_buses[1].set(~micro_tuning_scene2.wrapAt(~tuning_map.map(msg[4])));
+
+
+					~scene3_buses[4].set(~sc2_posSpec.map(msg[4]).postln; );
+
+						//~scene3_durs[0] = ~scene3_rhythm * ~sc3_dur_index1_spec.map(msg[4]);
+					    //~scene3_durs[1] = ~scene3_rhythm * ~sc3_dur_index2_spec.map(msg[4]);
+	                    //~scene3_durs[2] = ~scene3_rhythm * ~sc3_dur_index3_spec.map(msg[4]);
+	                    //~scene3_durs[3] = ~scene3_rhythm * ~sc3_dur_index4_spec.map(msg[4]);
+
+
+				}
+				{ ~scene == 4 }
+				{
+
+					~scene4_buses[4].set(~sc2_posSpec.map(msg[4]).postln; );
+
+
 
 				};
 
@@ -1150,7 +1406,7 @@ OSCdef(\trillflex3, {|msg|
 
 				if ( ~flex_gates[2] == \open, { ~flex_gates[2] = \closed; });    });
 			if ( fingers > 1, {
-			    "verb".postln;
+			   // "verb".postln;
                 // ~stereoverb_synth.set(\mix, msg[4]);
 				//~grainPosBus[2].set(~grainPosSpec.map(msg[6]));
 			    //~grainpitchBus[2].set(~tone_collection.wrapAt(~tuner.map(msg[6])));
@@ -1197,15 +1453,19 @@ OSCdef(\trillflex3, {|msg|
 				{ ~scene == 3 } {
 
 
-					~scene3_buses[0].set(~pentatetra_tuning.wrapAt(~sc2_tuningMap_first.map(msg[4])));
-					~scene3_buses[1].set(~pentatetra_tuning.wrapAt(~sc2_tuningMap_second.map(msg[4])));
-					~scene3_buses[2].set(~pentatetra_tuning.wrapAt(~sc2_tuningMap_third.map(msg[4])));
-					~scene3_buses[3].set(~pentatetra_tuning.wrapAt(~sc2_tuningMap_four.map(msg[4])));
+					~scene3_melody_selector = ~scene3_melody_spec.map(msg[4]);
+
+					//~scene3_buses[0].set(~eikosany_tuning.wrapAt(~sc3_tuningMap_first.map(msg[4])));
+					//~scene3_buses[1].set(~eikosany_tuning.wrapAt(~sc3_tuningMap_second.map(msg[4])));
+					//~scene3_buses[2].set(~eikosany_tuning.wrapAt(~sc3_tuningMap_third.map(msg[4])));
+					//~scene3_buses[3].set(~eikosany_tuning.wrapAt(~sc3_tuningMap_four.map(msg[4])));
 
 
 
 				}
 				{ ~scene == 4 } {
+
+						~scene4_melody_selector = ~scene4_melody_spec.map(msg[4]);
 
 				};
 
@@ -1234,7 +1494,7 @@ OSCdef(\trillflex4, {|msg|
 				if ( ~flex_gates[3] == \open, { ~flex_gates[3] = \closed; });
 		});
 			if ( fingers > 1, {
-			"verb".postln;
+			//"verb".postln;
 			  //~stereoverb_synth.set(\mix, msg[4]);
 		});
 			if ( fingers > 2, {
@@ -1289,7 +1549,8 @@ OSCdef(\trillflex4, {|msg|
 				}
 				{ ~scene == 3 } {
 
-					  ~scene3_buses[3].set(~micro_tuning_scene2.wrapAt(~tuning_map.map(msg[4])));
+					 	~scene3_melody_selector = ~scene3_melody_spec.map(msg[4]);
+
 					if ( ~global_freeze == \off, {
 
 					},
@@ -1303,6 +1564,7 @@ OSCdef(\trillflex4, {|msg|
 				}
 				{ ~scene == 4 } {
 
+					~scene4_melody_selector = ~scene4_melody_spec.map(msg[4]);
 				};
 
 

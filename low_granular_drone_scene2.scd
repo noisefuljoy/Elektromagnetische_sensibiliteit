@@ -81,7 +81,7 @@ SynthDef(\grain_eq, {|out=0 in amp=1 boostfreq=300 cutfreq=800 rq=0.5|
 	Out.ar(out,sig );
 }).store;
 
-SynthDef(\radio_sampler, {|out=0 amp=0.2 bufnum rateBus envbuf dur=0.1 posBus overlap=1|
+SynthDef(\radio_sampler, {|out=0 amp=0.8 bufnum rateBus envbuf dur=0.1 posBus overlap=1|
 		var env, sig, rate, pos;
 	    rate = In.kr(rateBus, 1);
 	    pos = In.kr(posBus, 1);
@@ -112,10 +112,10 @@ SynthDef(\radio_sampler, {|out=0 amp=0.2 bufnum rateBus envbuf dur=0.1 posBus ov
 	dur.wait;
 }; }).play;
 
-~flex_gates[0] = \open
-~flex_gates[1] = \closed
-~flex_gates[2] = \closed
-~flex_gates[3] = \closed
+~flex_gates[0] = \open;
+~flex_gates[1] = \open;
+~flex_gates[2] = \open;
+~flex_gates[3] = \open;
 
 ~grain_routine.stop;
 
