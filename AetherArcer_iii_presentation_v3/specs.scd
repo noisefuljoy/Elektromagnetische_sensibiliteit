@@ -213,8 +213,8 @@
 	~sc6_dur_index3_spec = [0.3, 1.01, 1, 0.1].asSpec;
 	~sc6_dur_index4_spec = [0.35, 1.15, -1, 0.1].asSpec;
 
-	~scene6_clocks = Array.fill(4, { TempoClock.new(0.6); });
+	~scene6_clocks = Array.fill(4, { TempoClock.new(2.0); });
 
-~scene6_durSpec = [1.5, 0.0005, 1, 0.001].asSpec;
+~scene6_durSpec = [1.5, 0.01, 1, 0.001].asSpec;
 ~scene6_posSpec = [0.0, 0.75, 1, 0.01].asSpec;
 ~scene6_clockSpec = [2.0, 4.5, 1, 0.001].asSpec;

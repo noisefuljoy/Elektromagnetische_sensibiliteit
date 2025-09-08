@@ -383,7 +383,8 @@ SynthDef(\allpassc2, {|in out=0 delmod=0.001 dec=1 mix=0.4 gate=1|
 		sig = In.ar(in, 2);
 
 	delsig = Decimator.ar(sig, LFNoise0.kr(0.05).range(4000,15000),6);
-
+	delsig = FreeVerb2.ar(sig[0], sig[1],0.5,0.95,0.4);
+	/*
 		3.do{|i|
 			n = (i + 1) * 0.1;
 			o = (i + 1) * 0.3;
@@ -391,6 +392,7 @@ SynthDef(\allpassc2, {|in out=0 delmod=0.001 dec=1 mix=0.4 gate=1|
 
 			delsig = AllpassC.ar(sig, 0.3, SinOsc.kr(delmod+o).range(0.01, n), e + dec, 1, delsig*0.9).tanh;
 		};
+	*/
 
 		sig = (delsig * mix) + (sig * ( 1 - mix) );
 	    sig = sig * 2;

@@ -1117,8 +1117,8 @@ OSCdef(\trillflex1, {|msg|
 
 			if ( ~transpose_gates_scene6[0] == 0, {
 
-				~scene6_clocks[0].tempo = 5;
-				~effectGroups[6].set(\mix, rrand(0.3, 0.5));
+				~scene6_clocks[0].tempo = 4;
+				~effectGroups[6].set(\mix, rrand(0.15, 0.3));
 					~transpose_gates_scene6[0] = 1 });
 			}
 			{ ~scene == 7 } {
@@ -1205,9 +1205,9 @@ OSCdef(\trillflex1, {|msg|
 				if ( ~transpose_gates_scene6[0] == 1, {
 
 
-					~effectGroups[6].set(\mix, 0.025,  \modFreq, rrand(0.01,0.05) );
+					~effectGroups[6].set(\mix, 0.0,  \modFreq, rrand(0.01,0.05) );
 
-					~scene6_clocks[0].tempo = 0.8;
+					~scene6_clocks[0].tempo = 2;
 					~transpose_gates_scene6[0] = 0; });
 
 			}
@@ -1384,7 +1384,7 @@ OSCdef(\trillflex2, {|msg|
 			{ ~scene == 6 } {
 				if ( ~transpose_gates_scene6[1] == 0, {
 
-					~scene6_clocks[1].tempo = 8;
+					~scene6_clocks[1].tempo = 4;
 					~transpose_gates_scene6[1] = 1;
 						~effectGroups[6].set(\mix, 0.2, \modFreq, rrand(0.25,1.5) );
 
@@ -1454,7 +1454,7 @@ OSCdef(\trillflex2, {|msg|
 			{ ~scene == 6 } {
 				if ( ~transpose_gates_scene6[1] == 0, {
 				~scene6_clocks[1].tempo = 4;
-				~effectGroups[6].set(\mix,rrand(0.3, 0.6) );
+				~effectGroups[6].set(\mix,rrand(0.15, 0.3) );
 					~transpose_gates_scene6[1] = 1; });
 			}
 			{ ~scene == 7 } {
@@ -1680,10 +1680,10 @@ OSCdef(\trillflex2, {|msg|
 				}
 				{ ~scene == 6 }  {
 
-					~scene6_durs[0] = ~scene5_rhythm * ~sc5_dur_index1_spec.map(msg[4]);
-					~scene6_durs[1] = ~scene5_rhythm * ~sc5_dur_index2_spec.map(msg[4]);
-					~scene6_durs[2] = ~scene5_rhythm * ~sc5_dur_index3_spec.map(msg[4]);
-					~scene6_durs[3] = ~scene5_rhythm * ~sc5_dur_index4_spec.map(msg[4]);
+					~scene6_durs[0] = ~scene6_rhythm * ~sc6_dur_index1_spec.map(msg[4]);
+					~scene6_durs[1] = ~scene6_rhythm * ~sc6_dur_index2_spec.map(msg[4]);
+					~scene6_durs[2] = ~scene6_rhythm * ~sc6_dur_index3_spec.map(msg[4]);
+					~scene6_durs[3] = ~scene6_rhythm * ~sc6_dur_index4_spec.map(msg[4]);
 
 
 
@@ -1724,7 +1724,7 @@ OSCdef(\trillflex3, {|msg|
 			}
 			{ ~scene == 1 } {
 				if ( ~transpose_gates_scene1[2] == 0, {
-					"open transpose gate scene 1".postln;
+					//"open transpose gate scene 1".postln;
 
 					~scene1_buses[11].set(rrand(1,2) );
 					~scene1_buses[7].set(rrand(0.5,2.0));
@@ -1763,8 +1763,8 @@ OSCdef(\trillflex3, {|msg|
 		{ ~scene == 6 } {
 
 				if ( ~transpose_gates_scene6[2] == 0, {
-				~scene6_clocks[2].tempo = 5;
-				~effectGroups[6].set(\mix,rrand(0.3,0.7) );
+				~scene6_clocks[2].tempo = 4;
+				~effectGroups[6].set(\mix,rrand(0.2,0.4) );
 					~transpose_gates_scene6[2] = 1; });
 			}
 			{ ~scene == 7 }
@@ -2012,8 +2012,8 @@ OSCdef(\trillflex4, {|msg|
 			}
 		{ ~scene == 6 } {
 				if ( ~transpose_gates_scene6[3] == 0, {
-				~scene6_clocks[3].tempo = 7;
-				~effectGroups[6].set(\mix,rrand(0.3,0.7) );
+				~scene6_clocks[3].tempo = 4;
+				~effectGroups[6].set(\mix,rrand(0.2,0.4) );
 					~transpose_gates_scene6[3] = 1; });
 			}
 			{ ~scene == 7 } {
@@ -2085,7 +2085,7 @@ OSCdef(\trillflex4, {|msg|
 				~scene6_clocks[3].tempo = ~scene5_clockSpec.map(x_val);
 
 				if ( ~transpose_gates_scene6[3] == 1, {
-				~effectGroups[6].set(\mix,0.05 );
+				~effectGroups[6].set(\mix,0.0 );
 					~transpose_gates_scene6[3] = 0; });
 			}
 			{ ~scene == 7 } {
@@ -2249,16 +2249,11 @@ OSCdef(\craft_osc, {|msg| var button1, button2, b1_denoise_gate=\open, b2_denois
 			if ( ~b2_denoise_gate == \open, { ~b2_denoise_gate = \closed; 	if ( ~debug, { "b2 gate closed".postln; });
 
 
-				Synth(\transition_sound,[\bufnum, ~radio_samples.choose,\amp,3, \rate, rrand(0.25,0.5),\dur, rrand(0.5,1.0)]);
+				/* play transition sound, SWITCH OFF? */
 				/*
-				~trans_routine = Routine({
-	20.do{ var dur = [0.2,0.6,0.33,0.1].choose;
-		dur = dur * 0.05;
-		Synth(\sine_short,[\freq, 3000 * ~pentatetra_tuning.choose, \rel, dur * rrand(1,1.5) ]);
+				Synth(\transition_sound,[\bufnum, ~radio_samples.choose,\amp,3, \rate, rrand(0.25,0.5),\dur, rrand(0.5,1.0)]);
+				*/
 
-		dur.wait; };
-}).play;
-			*/
 
 			if (~scene != 7, { ~scene = ~scene + 1;  }, { ~scene = 0; });
 			case
@@ -2277,7 +2272,7 @@ OSCdef(\craft_osc, {|msg| var button1, button2, b1_denoise_gate=\open, b2_denois
 
 
 
-				if ( ~debug, { ("scene "++~scene).postln; });
+				("scene "++~scene).postln;
 			});
 		}, {    if ( ~b2_denoise_gate == \closed, {  ~b2_denoise_gate = \open;  	if ( ~debug, {  "b2 gate open".postln; });  });             });
 
